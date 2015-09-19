@@ -1,0 +1,2 @@
+# AutomagicDownloader
+Automagically downloads things
