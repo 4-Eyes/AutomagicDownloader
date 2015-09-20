@@ -68,7 +68,7 @@ namespace MediaAPIs.IMDB
                     movie.Synopsis = synopsisNode.InnerText.Trim();
                 }
                 var posterURLNode =
-                    unparsedMovieNode.SelectSingleNode("../div/div/a/img[@src]");
+                    unparsedMovieNode.SelectSingleNode("../div[@class=\"lister-item-image ribbonize\"]/a/img[@src]");
                 if (posterURLNode != null)
                 {
                     movie.PosterURL = posterURLNode.Attributes["src"].Value;
