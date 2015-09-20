@@ -19,7 +19,8 @@ namespace MediaAPIs.MAL
             var animeListXML = Client.GetStringAsync(string.Format(_animelistURL, user)).Result;
             var listXMLDoc = new XmlDocument();
             listXMLDoc.LoadXml(animeListXML);
-            var userDetails = 
+            //var userDetails = 
+            return new List<Anime>();
         } 
     }
 }

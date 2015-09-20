@@ -6,6 +6,6 @@ namespace MediaAPIs.IMDB
     public class Movie : MediaItem
     {
         public DateTime ReleaseDate { get; set; }
-        public TimeSpan Length { get; set; }
+        public TimeSpan RunTime { get; set; }
     }
 }
