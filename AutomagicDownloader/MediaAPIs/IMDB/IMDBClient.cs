@@ -14,6 +14,7 @@ namespace MediaAPIs.IMDB
 {
     public class IMDBClient : MediaClient
     {
+
         private const string WatchListUrl = "http://www.imdb.com/user/{0}/watchlist";
         private const string TitleUrl = "http://www.imdb.com/title/{0}";
         private const string RatingsListUrl = "http://www.imdb.com/user/{0}/ratings";
@@ -36,9 +37,9 @@ namespace MediaAPIs.IMDB
             var userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(DefaultRatingsQueryString));
             var doc = new HtmlDocument();
             doc.LoadHtml(userRatingsHTML);
-            var unparsedMovies = doc.DocumentNode.SelectNodes("//div[@class=\"lister-item-content\"]");
+            var unparsedMovies = doc.DocumentNode.SelectNodes("//tr[@data-item-id]");
 
-            return unparsedMovies.Select(ParseRatingsListMovieHTML).ToList();
+            return unparsedMovies.Select(node => ParseRatingsListMovieHTML(node, MovieView.Compact)).ToList();
         }
 
         public async Task<List<MediaItem>> GetPublicWatchListAsync(string user)
@@ -54,9 +55,21 @@ namespace MediaAPIs.IMDB
             return unparsedMovies.Select(ParseWatchListMovieHTML).ToList();
         }
 
-        private static MediaItem ParseRatingsListMovieHTML(HtmlNode movieDetailNode)
+        private static MediaItem ParseRatingsListMovieHTML(HtmlNode movieDetailNode, MovieView view)
         {
-            return new MediaItem();
+            var movie = new Movie();
+            var titleNode = movieDetailNode.SelectSingleNode("td[@class=\"title\"]/a[@href]");
+            if (titleNode != null)
+            {
+                movie.Id = Regex.Match(titleNode.Attributes["href"].Value, "(tt[0-9]+)").Value;
+                movie.Title = titleNode.InnerText;
+            }
+            var yearNode = movieDetailNode.SelectSingleNode("td[@class=\"year\"]");
+            if (yearNode != null)
+            {
+                movie.ReleaseDate = new DateTime(int.Parse(yearNode.InnerText), 1, 1);
+            }
+            return movie;
         }
 
         private static MediaItem ParseWatchListMovieHTML(HtmlNode movieDetailNode)

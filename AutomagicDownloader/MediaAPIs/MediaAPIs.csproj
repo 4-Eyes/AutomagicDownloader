@@ -47,6 +47,7 @@
   <ItemGroup>
     <Compile Include="IMDB\IMDBClient.cs" />
     <Compile Include="IMDB\ClassificationEnums.cs" />
+    <Compile Include="IMDB\MovieEnums.cs" />
     <Compile Include="MAL\Anime.cs" />
     <Compile Include="MAL\MALClient.cs" />
     <Compile Include="MediaClient.cs" />
