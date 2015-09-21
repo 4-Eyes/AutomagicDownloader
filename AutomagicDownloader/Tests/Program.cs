@@ -12,9 +12,7 @@ namespace Tests
         static void Main(string[] args)
         {
             var client = new IMDBClient();
-            var movies = client.GetWatchList("ur45902278");
-            Console.WriteLine(USMovieClassification.G.GetDescription());
-            Console.WriteLine(USMovieClassification.G.GetDetail());
+            var movies = client.GetPublicRatingsAsync("ur45902278").Result;
             Console.ReadKey();
         }
     }
