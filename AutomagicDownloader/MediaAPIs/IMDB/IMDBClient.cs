@@ -38,7 +38,7 @@ namespace MediaAPIs.IMDB
             doc.LoadHtml(userRatingsHTML);
             var unparsedMovies = doc.DocumentNode.SelectNodes("//div[@class=\"lister-item-content\"]");
 
-            return unparsedMovies.Select(ParseMovieHTML).ToList();
+            return unparsedMovies.Select(ParseRatingsListMovieHTML).ToList();
         }
 
         public async Task<List<MediaItem>> GetPublicWatchListAsync(string user)
@@ -51,10 +51,15 @@ namespace MediaAPIs.IMDB
             {
                 throw new ArgumentException("User either doesn't have anything in their watch list or their watchlist isn't public");
             }
-            return unparsedMovies.Select(ParseMovieHTML).ToList();
+            return unparsedMovies.Select(ParseWatchListMovieHTML).ToList();
         }
 
-        private static MediaItem ParseMovieHTML(HtmlNode movieDetailNode)
+        private static MediaItem ParseRatingsListMovieHTML(HtmlNode movieDetailNode)
+        {
+            return new MediaItem();
+        }
+
+        private static MediaItem ParseWatchListMovieHTML(HtmlNode movieDetailNode)
         {
             var movie = new Movie();
             var movieNameIdNode = movieDetailNode.SelectSingleNode("h3/a[@href]");
