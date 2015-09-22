@@ -18,9 +18,9 @@ namespace MediaAPIs.IMDB
         private const string WatchListUrl = "http://www.imdb.com/user/{0}/watchlist";
         private const string TitleUrl = "http://www.imdb.com/title/{0}";
         private const string RatingsListUrl = "http://www.imdb.com/user/{0}/ratings";
-        private NameValueCollection DefaultRatingsQueryString = new NameValueCollection()
+        private readonly NameValueCollection _defaultRatingsQueryString = new NameValueCollection()
         {
-            {"view", "detail" }, //Other options include simple, ...
+            {"view", "compact" }, //Other options include compact, detail and grid
             {"sort", "title:asc" }, 
             {"defaults", "1" },
             {"start", "1" } //Increment this in 100's till no movies can be parsed
@@ -34,12 +34,12 @@ namespace MediaAPIs.IMDB
 
         public async Task<List<MediaItem>> GetPublicRatingsAsync(string user)
         {
-            var userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(DefaultRatingsQueryString));
+            var userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(_defaultRatingsQueryString));
             var doc = new HtmlDocument();
             doc.LoadHtml(userRatingsHTML);
             var unparsedMovies = doc.DocumentNode.SelectNodes("//tr[@data-item-id]");
 
-            return unparsedMovies.Select(node => ParseRatingsListMovieHTML(node, MovieView.Compact)).ToList();
+            return unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, MovieView.Compact)).ToList();
         }
 
         public async Task<List<MediaItem>> GetPublicWatchListAsync(string user)
@@ -58,16 +58,56 @@ namespace MediaAPIs.IMDB
         private static MediaItem ParseRatingsListMovieHTML(HtmlNode movieDetailNode, MovieView view)
         {
             var movie = new Movie();
-            var titleNode = movieDetailNode.SelectSingleNode("td[@class=\"title\"]/a[@href]");
-            if (titleNode != null)
+            switch (view)
             {
-                movie.Id = Regex.Match(titleNode.Attributes["href"].Value, "(tt[0-9]+)").Value;
-                movie.Title = titleNode.InnerText;
-            }
-            var yearNode = movieDetailNode.SelectSingleNode("td[@class=\"year\"]");
-            if (yearNode != null)
-            {
-                movie.ReleaseDate = new DateTime(int.Parse(yearNode.InnerText), 1, 1);
+                case MovieView.Compact:
+                    var titleNode = movieDetailNode.SelectSingleNode("td[@class=\"title\"]/a[@href]");
+                    if (titleNode != null)
+                    {
+                        movie.Id = Regex.Match(titleNode.Attributes["href"].Value, "(tt[0-9]+)").Value;
+                        movie.Title = titleNode.InnerText;
+                    }
+                    var yearNode = movieDetailNode.SelectSingleNode("td[@class=\"year\"]");
+                    if (yearNode != null)
+                    {
+                        movie.ReleaseDate = new DateTime(int.Parse(yearNode.InnerText), 1, 1);
+                    }
+                    var typeNode = movieDetailNode.SelectSingleNode("td[@class=\"title_type\"]");
+                    if (typeNode != null)
+                    {
+                        foreach (var value in Enum.GetValues(typeof(MediaType)))
+                        {
+                            if (value.ToString() == typeNode.InnerText.Replace("-", "").Replace(" ", ""))
+                            {
+                                movie.Type = (MediaType) value;
+                                break;
+                            }
+                        }
+                    }
+                    var raterRatingNode = movieDetailNode.SelectSingleNode("td[@class=\"rater_ratings\"]");
+                    if (raterRatingNode != null)
+                    {
+                        movie.UserRating = double.Parse(raterRatingNode.InnerText);
+                    }
+                    var userRatingNode = movieDetailNode.SelectSingleNode("td[@class=\"user_rating\"]");
+                    if (userRatingNode != null)
+                    {
+                        movie.Rating = double.Parse(userRatingNode.InnerText);
+                    }
+                    var numVotesNode = movieDetailNode.SelectSingleNode("td[@class=\"num_votes\"]");
+                    if (numVotesNode != null)
+                    {
+                        movie.NumberOfVotes = int.Parse(numVotesNode.InnerText.Replace(",", ""));
+                    }
+                    break;
+                case MovieView.Detail:
+
+                    break;
+                case MovieView.Grid:
+
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(view), view, null);
             }
             return movie;
         }
@@ -93,8 +133,7 @@ namespace MediaAPIs.IMDB
             {
                 movie.Genres = genresNode.InnerText.Split(',').Select(s => s.Trim()).ToList();
             }
-            var ratingNode =
-                movieDetailNode.SelectSingleNode("div/div[@class=\"inline-block ratings-imdb-rating\"]/strong");
+            var ratingNode = movieDetailNode.SelectSingleNode("div/div[@class=\"inline-block ratings-imdb-rating\"]/strong");
             if (ratingNode != null)
             {
                 movie.Rating = double.Parse(ratingNode.InnerText);
@@ -110,8 +149,7 @@ namespace MediaAPIs.IMDB
             {
                 movie.Synopsis = synopsisNode.InnerText.Trim();
             }
-            var posterURLNode =
-                movieDetailNode.SelectSingleNode("../div[@class=\"lister-item-image ribbonize\"]/a/img[@src]");
+            var posterURLNode = movieDetailNode.SelectSingleNode("../div[@class=\"lister-item-image ribbonize\"]/a/img[@src]");
             if (posterURLNode != null)
             {
                 movie.PosterURL = posterURLNode.Attributes["src"].Value;
@@ -129,10 +167,7 @@ namespace MediaAPIs.IMDB
 
         private static string ToQueryString(NameValueCollection nvc)
         {
-            var array = (from key in nvc.AllKeys
-                         from value in nvc.GetValues(key)
-                         select $"{HttpUtility.UrlEncode(key)}={HttpUtility.UrlEncode(value)}")
-                .ToArray();
+            var array = (from key in nvc.AllKeys from value in nvc.GetValues(key) select $"{HttpUtility.UrlEncode(key)}={HttpUtility.UrlEncode(value)}").ToArray();
             return "?" + string.Join("&", array);
         }
     }

@@ -9,6 +9,8 @@ namespace MediaAPIs
         public string Title { get; set; }
         public string Synopsis { get; set; }
         public double Rating { get; set; }
+        public int NumberOfVotes { get; set; }
+        public double UserRating { get; set; }
         public Enum Classification { get; set; }
         public List<string> Genres { get; set; }
         public string PosterURL { get; set; }
