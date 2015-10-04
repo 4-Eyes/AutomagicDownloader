@@ -1,10 +1,8 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
@@ -35,7 +33,8 @@ namespace MediaAPIs.IMDB
         public async Task<List<MediaItem>> GetPublicRatingsAsync(string user, MovieView view = MovieView.Compact)
         {
             var ratedMovies = new List<MediaItem>();
-            
+
+            _defaultRatingsQueryString["view"] = view.ToString().ToLower();
             var userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(_defaultRatingsQueryString));
             var doc = new HtmlDocument();
             doc.LoadHtml(userRatingsHTML);
@@ -118,26 +117,64 @@ namespace MediaAPIs.IMDB
                     {
                         movie.Title = titleYearTypeNode.SelectSingleNode("a").InnerText;
                         var match = Regex.Match(titleYearTypeNode.SelectSingleNode("span").InnerText,
-                            "\\((?<year>[0-9]+).(?<type>[a-zA-z]+)|");
+                            "\\((?<year>[0-9]+).(?<type>[a-zA-z]+|)");
                         if (match.Success)
                         {
                             movie.ReleaseDate = new DateTime(int.Parse(match.Groups["year"].Value), 1, 1);
                             object type = null;
-                            foreach (var value in Enum.GetValues(typeof(MediaType)).Cast<object>().Where(value => value.ToString() == match.Groups["type"].Value.Replace("-", "").Replace(" ", "")))
+                            if (string.IsNullOrEmpty(match.Groups["type"].Value))
                             {
-                                type = (MediaType)value;
-                                break;
+                                type = MediaType.Feature;
+                            }
+                            else
+                            {
+                                foreach (var value in Enum.GetValues(typeof (MediaType)).Cast<object>().Where(value => value.ToString() == match.Groups["type"].Value.Replace("-", "").Replace(" ", "")))
+                                {
+                                    type = (MediaType) value;
+                                    break;
+                                }
                             }
                             if (type != null) {
                                 if ((MediaType) type == MediaType.TVSeries)
                                 {
                                     //This part checks to see if it is a TV Episode
-
+                                    var episodeNode = infoNode.SelectSingleNode("div[@class=\"episode\"]");
+                                    if (episodeNode != null)
+                                    {
+                                        type = MediaType.TVEpisode;
+                                        movie.EpisodeName = episodeNode.SelectSingleNode("a").InnerText;
+                                    }
                                 }
-                                movie.Type = (MediaType) type;           
+                                movie.Type = (MediaType) type;
                             }
+
                         }
                     }
+                    var idRatingsNode = infoNode.SelectSingleNode("div[@class=\"rating rating-list\"]");
+                    if (idRatingsNode != null)
+                    {
+                        var match = Regex.Match(idRatingsNode.Attributes["id"].Value,
+                            "(?<id>tt[0-9]+)\\|[^\\|]+\\|(?<userRating>[0-9]+)\\|(?<imdbRating>[0-9\\.]+)");
+                        if (match.Success)
+                        {
+                            movie.Id = match.Groups["id"].Value;
+                            movie.UserRating = double.Parse(match.Groups["userRating"].Value);
+                            movie.Rating = double.Parse(match.Groups["imdbRating"].Value);
+                        }
+                    }
+                    var synopsisRuntimeNode = infoNode.SelectSingleNode("div[@class=\"item_description\"]");
+                    if (synopsisRuntimeNode != null)
+                    {
+                        movie.Synopsis = synopsisRuntimeNode.InnerText;
+                        var runtimeNode = synopsisRuntimeNode.SelectSingleNode("span");
+                        if (runtimeNode != null)
+                        {
+                            var runtime =
+                                Regex.Match(runtimeNode.InnerText, "(?<runtime>[0-9]+)").Groups["runtime"].Value;
+                            movie.RunTime = TimeSpan.FromMinutes(int.Parse(runtime));
+                        }
+                    }
+                    //Todo you can still get the poster URL from scraping this version.
                     break;
                 case MovieView.Grid:
                     throw new NotImplementedException("Have not implemented Grid parsing yet");
