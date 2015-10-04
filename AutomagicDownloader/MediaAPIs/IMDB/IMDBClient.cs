@@ -21,7 +21,7 @@ namespace MediaAPIs.IMDB
         private readonly NameValueCollection _defaultRatingsQueryString = new NameValueCollection()
         {
             {"view", "compact" }, //Other options include compact, detail and grid
-            {"sort", "title:asc" }, 
+            {"sort", "title:asc" }, //Other options rate_date:(desc|asc)...
             {"defaults", "1" },
             {"start", "1" } //Increment this in 100's till no movies can be parsed
         };
@@ -32,14 +32,28 @@ namespace MediaAPIs.IMDB
             Client = new HttpClient(Handler);
         }
 
-        public async Task<List<MediaItem>> GetPublicRatingsAsync(string user)
+        public async Task<List<MediaItem>> GetPublicRatingsAsync(string user, MovieView view = MovieView.Compact)
         {
+            var ratedMovies = new List<MediaItem>();
+            
             var userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(_defaultRatingsQueryString));
             var doc = new HtmlDocument();
             doc.LoadHtml(userRatingsHTML);
-            var unparsedMovies = doc.DocumentNode.SelectNodes("//tr[@data-item-id]");
+            var unparsedMovies = doc.DocumentNode.SelectNodes(view.GetXPathQuery());
+            var start = view.GetInterval() + 1;
+            while (unparsedMovies != null && unparsedMovies.Count > 0)
+            {
+                ratedMovies.AddRange(
+                    unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, view)));
+                _defaultRatingsQueryString["start"] = start.ToString();
+                userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(_defaultRatingsQueryString));
+                doc = new HtmlDocument();
+                doc.LoadHtml(userRatingsHTML);
+                unparsedMovies = doc.DocumentNode.SelectNodes(view.GetXPathQuery());
+                start += view.GetInterval();
+            }
 
-            return unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, MovieView.Compact)).ToList();
+            return ratedMovies;
         }
 
         public async Task<List<MediaItem>> GetPublicWatchListAsync(string user)
@@ -75,13 +89,10 @@ namespace MediaAPIs.IMDB
                     var typeNode = movieDetailNode.SelectSingleNode("td[@class=\"title_type\"]");
                     if (typeNode != null)
                     {
-                        foreach (var value in Enum.GetValues(typeof(MediaType)))
+                        foreach (var value in Enum.GetValues(typeof(MediaType)).Cast<object>().Where(value => value.ToString() == typeNode.InnerText.Replace("-", "").Replace(" ", "")))
                         {
-                            if (value.ToString() == typeNode.InnerText.Replace("-", "").Replace(" ", ""))
-                            {
-                                movie.Type = (MediaType) value;
-                                break;
-                            }
+                            movie.Type = (MediaType) value;
+                            break;
                         }
                     }
                     var raterRatingNode = movieDetailNode.SelectSingleNode("td[@class=\"rater_ratings\"]");
@@ -101,11 +112,35 @@ namespace MediaAPIs.IMDB
                     }
                     break;
                 case MovieView.Detail:
+                    var infoNode = movieDetailNode.SelectSingleNode("div[@class=\"info\"]");
+                    var titleYearTypeNode = infoNode.SelectSingleNode("b");
+                    if (titleYearTypeNode != null)
+                    {
+                        movie.Title = titleYearTypeNode.SelectSingleNode("a").InnerText;
+                        var match = Regex.Match(titleYearTypeNode.SelectSingleNode("span").InnerText,
+                            "\\((?<year>[0-9]+).(?<type>[a-zA-z]+)|");
+                        if (match.Success)
+                        {
+                            movie.ReleaseDate = new DateTime(int.Parse(match.Groups["year"].Value), 1, 1);
+                            object type = null;
+                            foreach (var value in Enum.GetValues(typeof(MediaType)).Cast<object>().Where(value => value.ToString() == match.Groups["type"].Value.Replace("-", "").Replace(" ", "")))
+                            {
+                                type = (MediaType)value;
+                                break;
+                            }
+                            if (type != null) {
+                                if ((MediaType) type == MediaType.TVSeries)
+                                {
+                                    //This part checks to see if it is a TV Episode
 
+                                }
+                                movie.Type = (MediaType) type;           
+                            }
+                        }
+                    }
                     break;
                 case MovieView.Grid:
-
-                    break;
+                    throw new NotImplementedException("Have not implemented Grid parsing yet");
                 default:
                     throw new ArgumentOutOfRangeException(nameof(view), view, null);
             }
