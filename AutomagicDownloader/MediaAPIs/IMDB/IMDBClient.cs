@@ -12,10 +12,21 @@ namespace MediaAPIs.IMDB
 {
     public class IMDBClient : MediaClient
     {
-
+        /// <summary>
+        /// The url that is used for getting a public watchlist.
+        /// </summary>
         private const string WatchListUrl = "http://www.imdb.com/user/{0}/watchlist";
+        /// <summary>
+        /// The url that is used to any imdb title (i.e. tt2396224)
+        /// </summary>
         private const string TitleUrl = "http://www.imdb.com/title/{0}";
+        /// <summary>
+        /// The url used to get user ratings (as long as the list is public)
+        /// </summary>
         private const string RatingsListUrl = "http://www.imdb.com/user/{0}/ratings";
+        /// <summary>
+        /// The query string key and values to be used in ratings requests.
+        /// </summary>
         private readonly NameValueCollection _defaultRatingsQueryString = new NameValueCollection()
         {
             {"view", "compact" }, //Other options include compact, detail and grid
@@ -42,8 +53,7 @@ namespace MediaAPIs.IMDB
             var start = view.GetInterval() + 1;
             while (unparsedMovies != null && unparsedMovies.Count > 0)
             {
-                ratedMovies.AddRange(
-                    unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, view)));
+                ratedMovies.AddRange(unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, view)).Where(parsedMovie => parsedMovie != null));
                 _defaultRatingsQueryString["start"] = start.ToString();
                 userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(_defaultRatingsQueryString));
                 doc = new HtmlDocument();
@@ -115,7 +125,9 @@ namespace MediaAPIs.IMDB
                     var titleYearTypeNode = infoNode.SelectSingleNode("b");
                     if (titleYearTypeNode != null)
                     {
-                        movie.Title = titleYearTypeNode.SelectSingleNode("a").InnerText;
+                        var test = titleYearTypeNode.SelectSingleNode("a");
+                        if (test == null) return null;
+                        movie.Title = test.InnerText;
                         var match = Regex.Match(titleYearTypeNode.SelectSingleNode("span").InnerText,
                             "\\((?<year>[0-9]+).(?<type>[a-zA-z]+|)");
                         if (match.Success)
