@@ -25,15 +25,9 @@ namespace MediaAPIs.IMDB
         /// </summary>
         private const string RatingsListUrl = "http://www.imdb.com/user/{0}/ratings";
         /// <summary>
-        /// The query string key and values to be used in ratings requests.
+        /// The url for a users main page.
         /// </summary>
-        private readonly NameValueCollection _defaultRatingsQueryString = new NameValueCollection()
-        {
-            {"view", "compact" }, //Other options include compact, detail and grid
-            {"sort", "title:asc" }, //Other options rate_date:(desc|asc)...
-            {"defaults", "1" },
-            {"start", "1" } //Increment this in 100's till no movies can be parsed
-        };
+        private const string UserUrl = "http://www.imdb.com/user/{0}";
 
         public IMDBClient(HttpClientHandler newHandler = null)
         {
@@ -45,24 +39,55 @@ namespace MediaAPIs.IMDB
         {
             var ratedMovies = new List<MediaItem>();
 
-            _defaultRatingsQueryString["view"] = view.ToString().ToLower();
-            var userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(_defaultRatingsQueryString));
+            var tasks = new List<Task>();
+            // Get the number of ratings
+            var userPageHTML = await Client.GetStringAsync(string.Format(UserUrl, user));
             var doc = new HtmlDocument();
-            doc.LoadHtml(userRatingsHTML);
-            var unparsedMovies = doc.DocumentNode.SelectNodes(view.GetXPathQuery());
-            var start = view.GetInterval() + 1;
-            while (unparsedMovies != null && unparsedMovies.Count > 0)
+            doc.LoadHtml(userPageHTML);
+            var numberRatingsNode = doc.DocumentNode.SelectSingleNode($"//a[@href='/user/{user}/ratings']");
+            if (numberRatingsNode == null) throw new Exception("User has no ratings or their ratings aren't public");
+            var totalRatingsMatch = Regex.Match(numberRatingsNode.InnerText, "(?<num>[0-9,]+)");
+            var totalRatings = int.Parse(totalRatingsMatch.Groups["num"].Value.Replace(",", ""));
+
+            var start = 0;
+            do
             {
-                ratedMovies.AddRange(unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, view)).Where(parsedMovie => parsedMovie != null));
-                _defaultRatingsQueryString["start"] = start.ToString();
-                userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(_defaultRatingsQueryString));
-                doc = new HtmlDocument();
-                doc.LoadHtml(userRatingsHTML);
-                unparsedMovies = doc.DocumentNode.SelectNodes(view.GetXPathQuery());
+                var headers = new NameValueCollection()
+                {
+                        {"view", view.ToString().ToLower() }, //Other options include compact, detail and grid
+                        {"sort", "title:asc" }, //Other options rate_date:(desc|asc)...
+                        {"defaults", "1" },
+                        {"start", start.ToString() } //Increment this in 100's till no movies can be parsed
+                };
+                tasks.Add(Task.Run(async () =>
+                {
+                    var movies = await ParseRatingPage(user, view, headers);
+                    if (movies == null) return;
+                    ratedMovies.AddRange(movies); }));
+
                 start += view.GetInterval();
+            } while (totalRatings > start);
+
+            while (tasks.Count > 0)
+            {
+                var finishedTask = await Task.WhenAny(tasks);
+
+                tasks.Remove(finishedTask);
+
+                await finishedTask;
             }
 
             return ratedMovies;
+        }
+
+        private async Task<IEnumerable<MediaItem>> ParseRatingPage(string user, MovieView view, NameValueCollection headers)
+        {
+            var userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(headers));
+            var doc = new HtmlDocument();
+            doc.LoadHtml(userRatingsHTML);
+            var unparsedMovies = doc.DocumentNode.SelectNodes(view.GetXPathQuery());
+            if (unparsedMovies == null || unparsedMovies.Count == 0) return null;
+            return unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, view)).Where(parsedMoive => parsedMoive != null);
         }
 
         public async Task<List<MediaItem>> GetPublicWatchListAsync(string user)
@@ -191,7 +216,7 @@ namespace MediaAPIs.IMDB
                 case MovieView.Grid:
                     throw new NotImplementedException("Have not implemented Grid parsing yet");
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(view), view, null);
+                    throw new ArgumentOutOfRangeException(nameof(view), view, "No implementation for this MovieView");
             }
             return movie;
         }
@@ -246,6 +271,7 @@ namespace MediaAPIs.IMDB
             var pageHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId)).Result;
             var doc = new HtmlDocument();
             doc.LoadHtml(pageHtml);
+            //Todo implement full scraping of a page
             return new Movie();
         }
 
