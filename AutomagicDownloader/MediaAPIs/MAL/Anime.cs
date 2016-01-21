@@ -1,6 +1,6 @@
 ﻿namespace MediaAPIs.MAL
 {
-    public class Anime
+    public class Anime : MediaItem
     {
     }
 }

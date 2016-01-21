@@ -49,7 +49,7 @@ namespace MediaAPIs.IMDB
             var totalRatingsMatch = Regex.Match(numberRatingsNode.InnerText, "(?<num>[0-9,]+)");
             var totalRatings = int.Parse(totalRatingsMatch.Groups["num"].Value.Replace(",", ""));
 
-            var start = 0;
+            var start = 1;
             // Set up all the requests needed to get the list as individual tasks.
             do
             {
@@ -154,9 +154,9 @@ namespace MediaAPIs.IMDB
                     {
                         var test = titleYearTypeNode.SelectSingleNode("a");
                         if (test == null) return null;
-                        movie.Title = test.InnerText;
+                        movie.Title = HttpUtility.HtmlDecode(test.InnerText);
                         var match = Regex.Match(titleYearTypeNode.SelectSingleNode("span").InnerText,
-                            "\\((?<year>[0-9]+).(?<type>[a-zA-z]+|)");
+                            "\\((?<year>[0-9]+).(?<type>[a-zA-z  -]+|)");
                         if (match.Success)
                         {
                             movie.ReleaseDate = new DateTime(int.Parse(match.Groups["year"].Value), 1, 1);
