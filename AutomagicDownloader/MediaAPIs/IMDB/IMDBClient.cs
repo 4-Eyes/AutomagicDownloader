@@ -50,6 +50,7 @@ namespace MediaAPIs.IMDB
             var totalRatings = int.Parse(totalRatingsMatch.Groups["num"].Value.Replace(",", ""));
 
             var start = 0;
+            // Set up all the requests needed to get the list as individual tasks.
             do
             {
                 var headers = new NameValueCollection()
@@ -68,6 +69,7 @@ namespace MediaAPIs.IMDB
                 start += view.GetInterval();
             } while (totalRatings > start);
 
+            // Now wait for each task to complete
             while (tasks.Count > 0)
             {
                 var finishedTask = await Task.WhenAny(tasks);
