@@ -3,6 +3,9 @@ using System.ComponentModel;
 
 namespace MediaAPIs.IMDB
 {
+    /// <summary>
+    /// The types of view to scrape from IMDb
+    /// </summary>
     public enum MovieView
     {
         [IntervalSize(250)]
@@ -16,6 +19,9 @@ namespace MediaAPIs.IMDB
         Detail
     }
 
+    /// <summary>
+    /// The type of media that the item scaped from IMDb is.
+    /// </summary>
     public enum MediaType
     {
         [Description("Documentary")]

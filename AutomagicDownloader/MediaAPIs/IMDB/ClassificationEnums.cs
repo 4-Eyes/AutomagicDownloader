@@ -4,6 +4,9 @@ using System.Linq;
 
 namespace MediaAPIs.IMDB
 {
+    /// <summary>
+    /// Movie classifications for the US. 
+    /// </summary>
     public enum USMovieClassification
     {
         [Description("General Audiences")]
@@ -23,6 +26,9 @@ namespace MediaAPIs.IMDB
         NC17
     }
 
+    /// <summary>
+    /// Movie classifcations for NZ.
+    /// </summary>
     public enum NZMovieClassification
     {
         [Description("General")]
