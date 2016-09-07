@@ -4,62 +4,48 @@ using System.ComponentModel;
 namespace MediaAPIs.IMDb
 {
     /// <summary>
-    /// The types of view to scrape from IMDb
+    ///     The types of view to scrape from IMDb
     /// </summary>
     public enum MovieView
     {
-        [IntervalSize(250)]
-        [XPathSearch("//tr[@data-item-id]")]
-        Compact,
-        [IntervalSize(100)]
-        [XPathSearch("//div[@class=\"list_item grid\"]")]
-        Grid,
-        [IntervalSize(100)]
-        [XPathSearch("//div[@class=\"list_item odd\"] | //div[@class=\"list_item even\"]")]
-        Detail
+        [IntervalSize(250)] [XPathSearch("//tr[@data-item-id]")] Compact,
+        [IntervalSize(100)] [XPathSearch("//div[@class=\"list_item grid\"]")] Grid,
+        [IntervalSize(100)] [XPathSearch("//div[@class=\"list_item odd\"] | //div[@class=\"list_item even\"]")] Detail
     }
 
     /// <summary>
-    /// The type of media that the item scaped from IMDb is.
+    ///     The type of media that the item scaped from IMDb is.
     /// </summary>
     public enum MediaType
     {
-        [Description("Documentary")]
-        Documentary,
-        [Description("Feature Film")]
-        Feature,
-        [Description("Mini Series")]
-        MiniSeries,
-        [Description("Short Film")]
-        ShortFilm,
-        [Description("TV Series")]
-        TVSeries,
-        [Description("TV Episode")]
-        TVEpisode,
-        [Description("TV Movie")]
-        TVMovie,
-        [Description("Video")]
-        Video
+        [Description("Documentary")] Documentary,
+        [Description("Feature Film")] Feature,
+        [Description("Mini Series")] MiniSeries,
+        [Description("Short Film")] ShortFilm,
+        [Description("TV Series")] TVSeries,
+        [Description("TV Episode")] TVEpisode,
+        [Description("TV Movie")] TVMovie,
+        [Description("Video")] Video
     }
 
-    class IntervalSize : Attribute
+    internal class IntervalSize : Attribute
     {
-        public int Size { get; set; }
-
         public IntervalSize(int size)
         {
             Size = size;
         }
+
+        public int Size { get; set; }
     }
 
-    class XPathSearch : Attribute
+    internal class XPathSearch : Attribute
     {
-        public string SearchString { get; set; }
-
         public XPathSearch(string searchString)
         {
             SearchString = searchString;
         }
+
+        public string SearchString { get; set; }
     }
 
     public static class MovieViewHelper
@@ -76,7 +62,7 @@ namespace MediaAPIs.IMDb
             if (memberInfo.Length <= 0) return 0;
             var attrs = memberInfo[0].GetCustomAttributes(typeof(IntervalSize), false);
 
-            return attrs.Length > 0 ? ((IntervalSize)attrs[0]).Size : 0;
+            return attrs.Length > 0 ? ((IntervalSize) attrs[0]).Size : 0;
         }
 
         public static string GetXPathQuery(this MovieView enumerationValue)
@@ -91,7 +77,7 @@ namespace MediaAPIs.IMDb
             if (memberInfo.Length <= 0) throw new ArgumentException("No XPath Query for this item");
             var attrs = memberInfo[0].GetCustomAttributes(typeof(XPathSearch), false);
 
-            return attrs.Length > 0 ? ((XPathSearch)attrs[0]).SearchString : "";
+            return attrs.Length > 0 ? ((XPathSearch) attrs[0]).SearchString : "";
         }
     }
 }

@@ -21,6 +21,6 @@ namespace MediaAPIs.MAL
             listXMLDoc.LoadXml(animeListXML);
             //var userDetails = 
             return new List<Anime>();
-        } 
+        }
     }
 }

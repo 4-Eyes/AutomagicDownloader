@@ -13,19 +13,22 @@ namespace MediaAPIs.IMDb
     public class IMDbClient : MediaClient
     {
         /// <summary>
-        /// The url that is used for getting a public watchlist.
+        ///     The url that is used for getting a public watchlist.
         /// </summary>
         private const string WatchListUrl = "http://www.imdb.com/user/{0}/watchlist";
+
         /// <summary>
-        /// The url that is used to any imdb title (i.e. tt2396224)
+        ///     The url that is used to any imdb title (i.e. tt2396224)
         /// </summary>
         private const string TitleUrl = "http://www.imdb.com/title/{0}";
+
         /// <summary>
-        /// The url used to get user ratings (as long as the list is public)
+        ///     The url used to get user ratings (as long as the list is public)
         /// </summary>
         private const string RatingsListUrl = "http://www.imdb.com/user/{0}/ratings";
+
         /// <summary>
-        /// The url for a users main page.
+        ///     The url for a users main page.
         /// </summary>
         private const string UserUrl = "http://www.imdb.com/user/{0}";
 
@@ -53,12 +56,12 @@ namespace MediaAPIs.IMDb
             // Set up all the requests needed to get the list as individual tasks.
             do
             {
-                var headers = new NameValueCollection()
+                var headers = new NameValueCollection
                 {
-                        {"view", view.ToString().ToLower() }, //Other options include compact, detail and grid
-                        {"sort", "title:asc" }, //Other options rate_date:(desc|asc)...
-                        {"defaults", "1" },
-                        {"start", start.ToString() } //Increment this in 100\"s till no movies can be parsed
+                    {"view", view.ToString().ToLower()}, //Other options include compact, detail and grid
+                    {"sort", "title:asc"}, //Other options rate_date:(desc|asc)...
+                    {"defaults", "1"},
+                    {"start", start.ToString()} //Increment this in 100\"s till no movies can be parsed
                 };
                 tasks.Add(Task.Run(async () =>
                 {
@@ -83,14 +86,18 @@ namespace MediaAPIs.IMDb
             return ratedMovies;
         }
 
-        private async Task<IEnumerable<MediaItem>> ParseRatingPage(string user, MovieView view, NameValueCollection headers)
+        private async Task<IEnumerable<MediaItem>> ParseRatingPage(string user, MovieView view,
+            NameValueCollection headers)
         {
-            var userRatingsHTML = await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(headers));
+            var userRatingsHTML =
+                await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(headers));
             var doc = new HtmlDocument();
             doc.LoadHtml(userRatingsHTML);
             var unparsedMovies = doc.DocumentNode.SelectNodes(view.GetXPathQuery());
             if (unparsedMovies == null || unparsedMovies.Count == 0) return null;
-            return unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, view)).Where(parsedMoive => parsedMoive != null);
+            return
+                unparsedMovies.Select(unparsedMovie => ParseRatingsListMovieHTML(unparsedMovie, view))
+                    .Where(parsedMoive => parsedMoive != null);
         }
 
         public async Task<List<MediaItem>> GetPublicWatchListAsync(string user)
@@ -101,7 +108,8 @@ namespace MediaAPIs.IMDb
             var unparsedMovies = doc.DocumentNode.SelectNodes("//div[@class=\"lister-item-content\"]");
             if (unparsedMovies.Count == 0)
             {
-                throw new ArgumentException("User either doesn\"t have anything in their watch list or their watchlist isn\"t public");
+                throw new ArgumentException(
+                    "User either doesn\"t have anything in their watch list or their watchlist isn\"t public");
             }
             return unparsedMovies.Select(ParseWatchListMovieHTML).ToList();
         }
@@ -126,7 +134,13 @@ namespace MediaAPIs.IMDb
                     var typeNode = movieDetailNode.SelectSingleNode("td[@class=\"title_type\"]");
                     if (typeNode != null)
                     {
-                        foreach (var value in Enum.GetValues(typeof(MediaType)).Cast<object>().Where(value => value.ToString() == typeNode.InnerText.Replace("-", "").Replace(" ", "")))
+                        foreach (
+                            var value in
+                                Enum.GetValues(typeof(MediaType))
+                                    .Cast<object>()
+                                    .Where(
+                                        value =>
+                                            value.ToString() == typeNode.InnerText.Replace("-", "").Replace(" ", "")))
                         {
                             movie.Type = (MediaType) value;
                             break;
@@ -168,13 +182,21 @@ namespace MediaAPIs.IMDb
                             }
                             else
                             {
-                                foreach (var value in Enum.GetValues(typeof (MediaType)).Cast<object>().Where(value => value.ToString() == match.Groups["type"].Value.Replace("-", "").Replace(" ", "")))
+                                foreach (
+                                    var value in
+                                        Enum.GetValues(typeof(MediaType))
+                                            .Cast<object>()
+                                            .Where(
+                                                value =>
+                                                    value.ToString() ==
+                                                    match.Groups["type"].Value.Replace("-", "").Replace(" ", "")))
                                 {
                                     type = (MediaType) value;
                                     break;
                                 }
                             }
-                            if (type != null) {
+                            if (type != null)
+                            {
                                 if ((MediaType) type == MediaType.TVSeries)
                                 {
                                     //This part checks to see if it is a TV Episode
@@ -187,7 +209,6 @@ namespace MediaAPIs.IMDb
                                 }
                                 movie.Type = (MediaType) type;
                             }
-
                         }
                     }
                     var idRatingsNode = infoNode.SelectSingleNode("div[@class=\"rating rating-list\"]");
@@ -245,7 +266,8 @@ namespace MediaAPIs.IMDb
             {
                 movie.Genres.AddRange(genresNode.InnerText.Split(',').Select(s => s.Trim()).ToList());
             }
-            var ratingNode = movieDetailNode.SelectSingleNode("div/div[@class=\"inline-block ratings-imdb-rating\"]/strong");
+            var ratingNode =
+                movieDetailNode.SelectSingleNode("div/div[@class=\"inline-block ratings-imdb-rating\"]/strong");
             if (ratingNode != null)
             {
                 movie.Rating = double.Parse(ratingNode.InnerText);
@@ -254,14 +276,17 @@ namespace MediaAPIs.IMDb
             if (yearNode != null)
             {
                 var yearString = Regex.Match(yearNode.InnerText, "([0-9]+)").Value;
-                movie.ReleaseDate = !string.IsNullOrWhiteSpace(yearString) ? new DateTime(int.Parse(yearString), 1, 1) : DateTime.MinValue;
+                movie.ReleaseDate = !string.IsNullOrWhiteSpace(yearString)
+                    ? new DateTime(int.Parse(yearString), 1, 1)
+                    : DateTime.MinValue;
             }
             var synopsisNode = movieDetailNode.SelectSingleNode("p[@class=\"\"]");
             if (synopsisNode != null)
             {
                 movie.Synopsis = synopsisNode.InnerText.Trim();
             }
-            var posterURLNode = movieDetailNode.SelectSingleNode("../div[@class=\"lister-item-image ribbonize\"]/a/img[@src]");
+            var posterURLNode =
+                movieDetailNode.SelectSingleNode("../div[@class=\"lister-item-image ribbonize\"]/a/img[@src]");
             if (posterURLNode != null)
             {
                 movie.PosterURL = posterURLNode.Attributes["src"].Value;
@@ -286,10 +311,12 @@ namespace MediaAPIs.IMDb
                 tasks.Add(Task.Run(() =>
                 {
                     var titleYearString = titleBarNode.SelectSingleNode("//h1[@itemprop=\"name\"]").InnerText;
-                    var titleYear = Regex.Match(HttpUtility.HtmlDecode(titleYearString).Trim() ?? "", "(?<title>.+).\\((?<year>[0-9]{4})\\)$");
+                    var titleYear = Regex.Match(HttpUtility.HtmlDecode(titleYearString).Trim() ?? "",
+                        "(?<title>.+).\\((?<year>[0-9]{4})\\)$");
                     movie.Title = titleYear.Groups["title"].Value;
                     movie.ReleaseDate = new DateTime(int.Parse(titleYear.Groups["year"].Value), 1, 1);
-                    var ratingsText = titleBarNode.SelectSingleNode("//div[@class='imdbRating']").InnerText.Replace("\n", "");
+                    var ratingsText = titleBarNode.SelectSingleNode("//div[@class='imdbRating']")
+                        .InnerText.Replace("\n", "");
                     var ratingsDetails = Regex.Match(ratingsText, "(?<rating>[0-9\\.]{3})\\/10[^0-9]+(?<votes>[0-9,]+)");
                     movie.Rating = double.Parse(ratingsDetails.Groups["rating"].Value);
                     movie.NumberOfVotes = int.Parse(ratingsDetails.Groups["votes"].Value.Replace(",", ""));
@@ -306,7 +333,8 @@ namespace MediaAPIs.IMDb
                         movie.PosterURL = posterNode.Attributes["src"].Value;
                     }
                 }));
-                var generalDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"minPosterWithPlotSummaryHeight\"]");
+                var generalDetailsNode =
+                    doc.DocumentNode.SelectSingleNode("//div[@class=\"minPosterWithPlotSummaryHeight\"]");
                 tasks.Add(Task.Run(() =>
                 {
                     if (generalDetailsNode == null) return;
@@ -330,7 +358,8 @@ namespace MediaAPIs.IMDb
                 tasks.Add(Task.Run(() =>
                 {
                     if (otherGeneralDetailsNode == null) return;
-                    var metacriticNode = otherGeneralDetailsNode.SelectSingleNode("//div[contains(@class,'metacriticScore')]");
+                    var metacriticNode =
+                        otherGeneralDetailsNode.SelectSingleNode("//div[contains(@class,'metacriticScore')]");
                     if (metacriticNode != null)
                     {
                         movie.MetacriticScore = int.Parse(metacriticNode.InnerText.Replace("\n", ""));
@@ -340,7 +369,6 @@ namespace MediaAPIs.IMDb
                     {
                         movie.ShortSummary = shortSummary.InnerText.Replace("\n", "").Trim();
                     }
-
                 }));
                 var storylineDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@id=\"titleStoryLine\"]");
                 tasks.Add(Task.Run(() =>
@@ -353,7 +381,13 @@ namespace MediaAPIs.IMDb
                     var genres = storylineDetailsNode.SelectSingleNode("//div[@itemprop='genre']");
                     if (genres != null)
                     {
-                        movie.Genres.AddRange(genres.InnerText.Replace("\n", "").Trim().Replace("&nbsp;", "").Replace("Genres: ", "").Split('|').Select(g => g.Trim()));
+                        movie.Genres.AddRange(
+                            genres.InnerText.Replace("\n", "")
+                                .Trim()
+                                .Replace("&nbsp;", "")
+                                .Replace("Genres: ", "")
+                                .Split('|')
+                                .Select(g => g.Trim()));
                     }
                     var certificateNode = storylineDetailsNode.SelectSingleNode("//span[@itemprop='contentRating']");
                     if (certificateNode != null)
@@ -374,7 +408,9 @@ namespace MediaAPIs.IMDb
                                 keyword.SelectSingleNode("div[@class='sodatext']/a").InnerText.Replace("\n", "").Trim();
                             var relevance =
                                 Regex.Match(
-                                    keyword.SelectSingleNode("div/div[@class='interesting-count-text']/a").InnerText.Replace("\n", "").Trim(),
+                                    keyword.SelectSingleNode("div/div[@class='interesting-count-text']/a")
+                                        .InnerText.Replace("\n", "")
+                                        .Trim(),
                                     "(?<helpful>[0-9]+) of (?<total>[0-9]+)");
                             k.Words = words;
                             if (relevance.Success)
@@ -387,17 +423,16 @@ namespace MediaAPIs.IMDb
                     }));
                 }));
                 var productionDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@id=\"titleDetails\"]");
-                tasks.Add(Task.Run(() =>
-                {
-                    
-                }));
+                tasks.Add(Task.Run(() => { }));
             }));
             tasks.Add(Task.Run(() =>
             {
                 var fullCreditsHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId) + "/fullcredits").Result;
                 var doc = new HtmlDocument();
                 doc.LoadHtml(fullCreditsHtml);
-                var tables = doc.DocumentNode.SelectNodes("//table[@class=\"simpleTable simpleCreditsTable\"]/tbody | //table[@class='cast_list']");
+                var tables =
+                    doc.DocumentNode.SelectNodes(
+                        "//table[@class=\"simpleTable simpleCreditsTable\"]/tbody | //table[@class='cast_list']");
                 foreach (var table in tables)
                 {
                     var credits = table.SelectNodes("tr/td[@class=\"name\"] | tr/td[@itemprop='actor']").Select(node =>
@@ -414,7 +449,9 @@ namespace MediaAPIs.IMDb
                         };
                         return credit;
                     });
-                    var group = table.PreviousSibling.PreviousSibling.Name == "h4" ? table.PreviousSibling.PreviousSibling.InnerText : table.ParentNode.PreviousSibling.PreviousSibling.InnerText;
+                    var group = table.PreviousSibling.PreviousSibling.Name == "h4"
+                        ? table.PreviousSibling.PreviousSibling.InnerText
+                        : table.ParentNode.PreviousSibling.PreviousSibling.InnerText;
                     group = group.Replace("\n", "");
                     if (@group.Contains("Directed"))
                     {
@@ -439,7 +476,6 @@ namespace MediaAPIs.IMDb
                     else
                     {
                         movie.OtherCrew.AddRange(credits);
-
                     }
                 }
             }));
@@ -458,7 +494,9 @@ namespace MediaAPIs.IMDb
 
         private static string ToQueryString(NameValueCollection nvc)
         {
-            var array = (from key in nvc.AllKeys from value in nvc.GetValues(key) select $"{HttpUtility.UrlEncode(key)}={HttpUtility.UrlEncode(value)}").ToArray();
+            var array = (from key in nvc.AllKeys
+                from value in nvc.GetValues(key)
+                select $"{HttpUtility.UrlEncode(key)}={HttpUtility.UrlEncode(value)}").ToArray();
             return "?" + string.Join("&", array);
         }
     }
