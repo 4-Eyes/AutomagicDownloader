@@ -1,2 +1,2 @@
-# AutomagicDownloader
-Automagically downloads things, well not yet, but soon
+# Media APIs
+A bunch of media APIs that I've never finished
