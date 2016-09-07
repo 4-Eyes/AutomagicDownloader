@@ -1,10 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.23107.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutomagicDownloader", "AutomagicDownloader\AutomagicDownloader.csproj", "{BCFC5D25-4AF6-469B-94C1-A95448E4F5B3}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaAPIs", "MediaAPIs\MediaAPIs.csproj", "{6D417226-4D7F-465C-A603-E55123DE8C5E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{A67A23F2-1737-4A45-B497-D430204C2057}"
@@ -15,10 +13,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{BCFC5D25-4AF6-469B-94C1-A95448E4F5B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BCFC5D25-4AF6-469B-94C1-A95448E4F5B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BCFC5D25-4AF6-469B-94C1-A95448E4F5B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BCFC5D25-4AF6-469B-94C1-A95448E4F5B3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{6D417226-4D7F-465C-A603-E55123DE8C5E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6D417226-4D7F-465C-A603-E55123DE8C5E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6D417226-4D7F-465C-A603-E55123DE8C5E}.Release|Any CPU.ActiveCfg = Release|Any CPU

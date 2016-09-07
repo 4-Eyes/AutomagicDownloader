@@ -35,7 +35,7 @@ namespace Tests
             var duplicates = featureFilms.GroupBy(x => x)
                 .Where(group => group.Count() > 1)
                 .Select(group => group.Key).ToList();
-            WriteNamesToFile(featureFilms);
+//            WriteNamesToFile(featureFilms);
             Console.ReadKey();
         }
 
