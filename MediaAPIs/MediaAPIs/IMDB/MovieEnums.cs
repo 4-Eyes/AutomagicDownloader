@@ -1,7 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 
-namespace MediaAPIs.IMDB
+namespace MediaAPIs.IMDb
 {
     /// <summary>
     /// The types of view to scrape from IMDb

@@ -1,10 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace MediaAPIs.IMDB
+namespace MediaAPIs.IMDb
 {
-    public class Movie : MediaItem
+    public class IMDbMediaItem : MediaItem
     {
+        public IMDbMediaItem()
+        {
+            Cast = new List<Credit>();
+            Producers = new List<Credit>();
+            Composers = new List<Credit>();
+            Directors = new List<Credit>();
+            Writers = new List<Credit>();
+            OtherCrew = new List<Credit>();
+        }
+
         /// <summary>
         /// The Release date of the media item.
         /// </summary>
@@ -22,5 +32,12 @@ namespace MediaAPIs.IMDB
         /// it will be null.
         /// </summary>
         public string EpisodeName { get; set; }
+
+        public List<Credit> Directors { get; private set; }
+        public List<Credit> Writers { get; private set; }
+        public List<Credit> Cast { get; private set; }
+        public List<Credit> Producers { get; private set; }
+        public List<Credit> Composers { get; private set; }
+        public List<Credit> OtherCrew { get; private set; }
     }
 }

@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 using System.Web;
 using HtmlAgilityPack;
 
-namespace MediaAPIs.IMDB
+namespace MediaAPIs.IMDb
 {
-    public class IMDBClient : MediaClient
+    public class IMDbClient : MediaClient
     {
         /// <summary>
         /// The url that is used for getting a public watchlist.
@@ -29,7 +29,7 @@ namespace MediaAPIs.IMDB
         /// </summary>
         private const string UserUrl = "http://www.imdb.com/user/{0}";
 
-        public IMDBClient(HttpClientHandler newHandler = null)
+        public IMDbClient(HttpClientHandler newHandler = null)
         {
             Handler = newHandler ?? new HttpClientHandler();
             Client = new HttpClient(Handler);
@@ -44,8 +44,8 @@ namespace MediaAPIs.IMDB
             var userPageHTML = await Client.GetStringAsync(string.Format(UserUrl, user));
             var doc = new HtmlDocument();
             doc.LoadHtml(userPageHTML);
-            var numberRatingsNode = doc.DocumentNode.SelectSingleNode($"//a[@href='/user/{user}/ratings']");
-            if (numberRatingsNode == null) throw new Exception("User has no ratings or their ratings aren't public");
+            var numberRatingsNode = doc.DocumentNode.SelectSingleNode($"//a[@href=\"/user/{user}/ratings\"]");
+            if (numberRatingsNode == null) throw new Exception("User has no ratings or their ratings aren\"t public");
             var totalRatingsMatch = Regex.Match(numberRatingsNode.InnerText, "(?<num>[0-9,]+)");
             var totalRatings = int.Parse(totalRatingsMatch.Groups["num"].Value.Replace(",", ""));
 
@@ -58,13 +58,14 @@ namespace MediaAPIs.IMDB
                         {"view", view.ToString().ToLower() }, //Other options include compact, detail and grid
                         {"sort", "title:asc" }, //Other options rate_date:(desc|asc)...
                         {"defaults", "1" },
-                        {"start", start.ToString() } //Increment this in 100's till no movies can be parsed
+                        {"start", start.ToString() } //Increment this in 100\"s till no movies can be parsed
                 };
                 tasks.Add(Task.Run(async () =>
                 {
                     var movies = await ParseRatingPage(user, view, headers);
                     if (movies == null) return;
-                    ratedMovies.AddRange(movies); }));
+                    ratedMovies.AddRange(movies);
+                }));
 
                 start += view.GetInterval();
             } while (totalRatings > start);
@@ -100,14 +101,14 @@ namespace MediaAPIs.IMDB
             var unparsedMovies = doc.DocumentNode.SelectNodes("//div[@class=\"lister-item-content\"]");
             if (unparsedMovies.Count == 0)
             {
-                throw new ArgumentException("User either doesn't have anything in their watch list or their watchlist isn't public");
+                throw new ArgumentException("User either doesn\"t have anything in their watch list or their watchlist isn\"t public");
             }
             return unparsedMovies.Select(ParseWatchListMovieHTML).ToList();
         }
 
         private static MediaItem ParseRatingsListMovieHTML(HtmlNode movieDetailNode, MovieView view)
         {
-            var movie = new Movie();
+            var movie = new IMDbMediaItem();
             switch (view)
             {
                 case MovieView.Compact:
@@ -225,7 +226,7 @@ namespace MediaAPIs.IMDB
 
         private static MediaItem ParseWatchListMovieHTML(HtmlNode movieDetailNode)
         {
-            var movie = new Movie();
+            var movie = new IMDbMediaItem();
             var movieNameIdNode = movieDetailNode.SelectSingleNode("h3/a[@href]");
             movie.Id = Regex.Match(movieNameIdNode.Attributes["href"].Value, "(tt[0-9]+)").Value;
             movie.Title = movieNameIdNode.InnerText;
@@ -268,13 +269,102 @@ namespace MediaAPIs.IMDB
             return movie;
         }
 
-        public MediaItem GetMovie(string imdbId)
+        public async Task<MediaItem> GetMovieAsync(string imdbId)
         {
-            var pageHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId)).Result;
-            var doc = new HtmlDocument();
-            doc.LoadHtml(pageHtml);
-            //Todo implement full scraping of a page
-            return new Movie();
+            var movie = new IMDbMediaItem();
+            var tasks = new List<Task>();
+
+            tasks.Add(Task.Run(() =>
+            {
+                var pageHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId)).Result;
+                var doc = new HtmlDocument();
+                doc.LoadHtml(pageHtml);
+                var titleBarNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"titleBar\"]");
+                tasks.Add(Task.Run(() =>
+                {
+                    var titleYearString = titleBarNode.SelectSingleNode("//h1[@itemprop=\"name\"]").InnerText;
+                    var titleYear = Regex.Match(HttpUtility.HtmlDecode(titleYearString).Trim() ?? "", "(?<title>.+).\\((?<year>[0-9]{4})\\)$");
+                    movie.Title = titleYear.Groups["title"].Value;
+                    movie.ReleaseDate = new DateTime(int.Parse(titleYear.Groups["year"].Value), 1, 1);
+                }));
+                var generalDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"minPosterWithPlotSummaryHeight\"]");
+                tasks.Add(Task.Run(() =>
+                {
+
+                }));
+                var storylineDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@id=\"titleStoryLine\"]");
+                tasks.Add(Task.Run(() =>
+                {
+
+                }));
+                var productionDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@id=\"titleDetails\"]");
+                tasks.Add(Task.Run(() =>
+                {
+
+                }));
+            }));
+            tasks.Add(Task.Run(() =>
+            {
+                var fullCreditsHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId) + "/fullcredits").Result;
+                var doc = new HtmlDocument();
+                doc.LoadHtml(fullCreditsHtml);
+                var tables = doc.DocumentNode.SelectNodes("//table[@class=\"simpleTable simpleCreditsTable\"]/tbody | //table[@class='cast_list']");
+                foreach (var table in tables)
+                {
+                    var credits = table.SelectNodes("tr/td[@class=\"name\"] | tr/td[@itemprop='actor']").Select(node =>
+                    {
+                        string id = null;
+                        if (node.SelectSingleNode("a")?.Attributes["href"] != null)
+                        {
+                            id = Regex.Match(node.SelectSingleNode("a").Attributes["href"].Value, "nm[0-9]+").Value;
+                        }
+                        var credit = new Credit
+                        {
+                            Id = id == "" ? null : id,
+                            Name = node.InnerText.Replace("\n", "").Trim()
+                        };
+                        return credit;
+                    });
+                    var group = table.PreviousSibling.PreviousSibling.Name == "h4" ? table.PreviousSibling.PreviousSibling.InnerText : table.ParentNode.PreviousSibling.PreviousSibling.InnerText;
+                    group = group.Replace("\n", "");
+                    if (@group.Contains("Directed"))
+                    {
+                        movie.Directors.AddRange(credits);
+                    }
+                    else if (@group.Contains("Writing"))
+                    {
+                        movie.Writers.AddRange(credits);
+                    }
+                    else if (@group.Contains("Cast "))
+                    {
+                        movie.Cast.AddRange(credits);
+                    }
+                    else if (@group.Contains("Produced"))
+                    {
+                        movie.Producers.AddRange(credits);
+                    }
+                    else if (@group.Contains("Music by"))
+                    {
+                        movie.Composers.AddRange(credits);
+                    }
+                    else
+                    {
+                        movie.OtherCrew.AddRange(credits);
+
+                    }
+                }
+            }));
+            // Now wait for each task to complete
+            while (tasks.Count > 0)
+            {
+                var finishedTask = await Task.WhenAny(tasks);
+
+                tasks.Remove(finishedTask);
+
+                await finishedTask;
+            }
+
+            return movie;
         }
 
         private static string ToQueryString(NameValueCollection nvc)

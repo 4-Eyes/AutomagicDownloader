@@ -45,13 +45,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IMDB\IMDBClient.cs" />
-    <Compile Include="IMDB\ClassificationEnums.cs" />
-    <Compile Include="IMDB\MovieEnums.cs" />
+    <Compile Include="IMDb\Credit.cs" />
+    <Compile Include="IMDb\IMDbClient.cs" />
+    <Compile Include="IMDb\ClassificationEnums.cs" />
+    <Compile Include="IMDb\MovieEnums.cs" />
     <Compile Include="MAL\Anime.cs" />
     <Compile Include="MAL\MALClient.cs" />
     <Compile Include="MediaClient.cs" />
-    <Compile Include="IMDB\Movie.cs" />
+    <Compile Include="IMDb\IMDbMediaItem.cs" />
     <Compile Include="MediaItem.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

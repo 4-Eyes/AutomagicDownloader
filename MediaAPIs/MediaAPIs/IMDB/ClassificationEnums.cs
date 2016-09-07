@@ -2,7 +2,7 @@
 using System.ComponentModel;
 using System.Linq;
 
-namespace MediaAPIs.IMDB
+namespace MediaAPIs.IMDb
 {
     /// <summary>
     /// Movie classifications for the US. 
