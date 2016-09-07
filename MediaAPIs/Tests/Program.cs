@@ -11,7 +11,7 @@ namespace Tests
         static void Main(string[] args)
         {
             var client = new IMDbClient();
-            var movie = client.GetMovieAsync("tt3544112").Result;
+            var movie = client.GetMovieAsync("tt0468569").Result; //tt4272866 (Bakemono no Ko) tt3544112 (Sing Street) tt2936180 (Far from Men) tt0468569 (The Dark Knight)
 //            var movies = client.GetPublicRatingsAsync("ur45902278", MovieView.Detail).Result;
 //            var sadnessLevel = new TimeSpan();
 //            var totalIMDbRating = 0.0;

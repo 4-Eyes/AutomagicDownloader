@@ -7,12 +7,14 @@ namespace MediaAPIs.IMDb
     {
         public IMDbMediaItem()
         {
+            Keywords = new List<KeyWord>();
             Cast = new List<Credit>();
             Producers = new List<Credit>();
             Composers = new List<Credit>();
             Directors = new List<Credit>();
             Writers = new List<Credit>();
             OtherCrew = new List<Credit>();
+            OtherTitles = new List<string>();
         }
 
         /// <summary>
@@ -39,5 +41,9 @@ namespace MediaAPIs.IMDb
         public List<Credit> Producers { get; private set; }
         public List<Credit> Composers { get; private set; }
         public List<Credit> OtherCrew { get; private set; }
+        public List<string> OtherTitles { get; private set; }
+        public int MetacriticScore { get; set; }
+        public string ShortSummary { get; set; }
+        public List<KeyWord> Keywords { get; private set; }
     }
 }

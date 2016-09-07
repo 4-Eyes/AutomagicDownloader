@@ -68,11 +68,12 @@ namespace MediaAPIs.IMDb
     {
         public static Enum ParseClassification(string classificationString)
         {
-            foreach (var usClassification in Enum.GetValues(typeof(USMovieClassification)).Cast<object>().Where(usClassification => string.Equals(usClassification.ToString(), classificationString.Replace("-", ""))))
+            foreach (var usClassification in Enum.GetValues(typeof(USMovieClassification)).Cast<object>().Where(usClassification1 => classificationString.Replace("-", "").Contains(usClassification1.ToString())).OrderBy(
+                o => -1 * o.ToString().ToCharArray().Length))
             {
                 return (USMovieClassification) usClassification;
             }
-            foreach (var nzClassification in Enum.GetValues(typeof(NZMovieClassification)).Cast<object>().Where(usClassification => string.Equals(usClassification.ToString(), classificationString)))
+            foreach (var nzClassification in Enum.GetValues(typeof(NZMovieClassification)).Cast<object>().Where(nzClassification1 => classificationString.Contains(nzClassification1.ToString())))
             {
                 return (NZMovieClassification) nzClassification;
             }

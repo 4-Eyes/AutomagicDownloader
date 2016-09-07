@@ -243,7 +243,7 @@ namespace MediaAPIs.IMDb
             var genresNode = movieDetailNode.SelectSingleNode("p/span[@class=\"genre\"]");
             if (genresNode != null)
             {
-                movie.Genres = genresNode.InnerText.Split(',').Select(s => s.Trim()).ToList();
+                movie.Genres.AddRange(genresNode.InnerText.Split(',').Select(s => s.Trim()).ToList());
             }
             var ratingNode = movieDetailNode.SelectSingleNode("div/div[@class=\"inline-block ratings-imdb-rating\"]/strong");
             if (ratingNode != null)
@@ -271,7 +271,10 @@ namespace MediaAPIs.IMDb
 
         public async Task<MediaItem> GetMovieAsync(string imdbId)
         {
-            var movie = new IMDbMediaItem();
+            var movie = new IMDbMediaItem
+            {
+                Id = imdbId
+            };
             var tasks = new List<Task>();
 
             tasks.Add(Task.Run(() =>
@@ -279,28 +282,114 @@ namespace MediaAPIs.IMDb
                 var pageHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId)).Result;
                 var doc = new HtmlDocument();
                 doc.LoadHtml(pageHtml);
-                var titleBarNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"titleBar\"]");
+                var titleBarNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"title_bar_wrapper\"]");
                 tasks.Add(Task.Run(() =>
                 {
                     var titleYearString = titleBarNode.SelectSingleNode("//h1[@itemprop=\"name\"]").InnerText;
                     var titleYear = Regex.Match(HttpUtility.HtmlDecode(titleYearString).Trim() ?? "", "(?<title>.+).\\((?<year>[0-9]{4})\\)$");
                     movie.Title = titleYear.Groups["title"].Value;
                     movie.ReleaseDate = new DateTime(int.Parse(titleYear.Groups["year"].Value), 1, 1);
+                    var ratingsText = titleBarNode.SelectSingleNode("//div[@class='imdbRating']").InnerText.Replace("\n", "");
+                    var ratingsDetails = Regex.Match(ratingsText, "(?<rating>[0-9\\.]{3})\\/10[^0-9]+(?<votes>[0-9,]+)");
+                    movie.Rating = double.Parse(ratingsDetails.Groups["rating"].Value);
+                    movie.NumberOfVotes = int.Parse(ratingsDetails.Groups["votes"].Value.Replace(",", ""));
+                    // Todo if I ever doing logging in then I should add scraping of the user rating.
+                    var originalTitleNode = titleBarNode.SelectSingleNode("//div[@class='originalTitle']");
+                    if (originalTitleNode != null)
+                    {
+                        var originalTitle = Regex.Match(originalTitleNode.InnerText, "(?<title>.+) \\(original title\\)");
+                        movie.OtherTitles.Add(originalTitle.Groups["title"].Value);
+                    }
+                    var posterNode = titleBarNode.ParentNode.SelectSingleNode("//div[@class='poster']/a/img");
+                    if (posterNode != null)
+                    {
+                        movie.PosterURL = posterNode.Attributes["src"].Value;
+                    }
                 }));
                 var generalDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@class=\"minPosterWithPlotSummaryHeight\"]");
                 tasks.Add(Task.Run(() =>
                 {
+                    if (generalDetailsNode == null) return;
+                    var imgNode = generalDetailsNode.SelectSingleNode("div/div/a/img");
+                    if (imgNode != null)
+                    {
+                        movie.PosterURL = imgNode.Attributes["src"].Value;
+                    }
+                    var metacriticNode = generalDetailsNode.SelectSingleNode("//div[contains(@class,'metacriticScore')]");
+                    if (metacriticNode != null)
+                    {
+                        movie.MetacriticScore = int.Parse(metacriticNode.InnerText);
+                    }
+                    var shortSummary = generalDetailsNode.SelectSingleNode("//div[@class='summary_text']");
+                    if (shortSummary != null)
+                    {
+                        movie.ShortSummary = shortSummary.InnerText.Replace("\n", "").Trim();
+                    }
+                }));
+                var otherGeneralDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@class='plot_summary_wrapper']");
+                tasks.Add(Task.Run(() =>
+                {
+                    if (otherGeneralDetailsNode == null) return;
+                    var metacriticNode = otherGeneralDetailsNode.SelectSingleNode("//div[contains(@class,'metacriticScore')]");
+                    if (metacriticNode != null)
+                    {
+                        movie.MetacriticScore = int.Parse(metacriticNode.InnerText.Replace("\n", ""));
+                    }
+                    var shortSummary = otherGeneralDetailsNode.SelectSingleNode("//div[@class='summary_text']");
+                    if (shortSummary != null)
+                    {
+                        movie.ShortSummary = shortSummary.InnerText.Replace("\n", "").Trim();
+                    }
 
                 }));
                 var storylineDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@id=\"titleStoryLine\"]");
                 tasks.Add(Task.Run(() =>
                 {
-
+                    var summary = storylineDetailsNode.SelectSingleNode("//div[@itemprop='description']");
+                    if (summary != null)
+                    {
+                        movie.Synopsis = summary.InnerText.Replace("\n", "").Trim();
+                    }
+                    var genres = storylineDetailsNode.SelectSingleNode("//div[@itemprop='genre']");
+                    if (genres != null)
+                    {
+                        movie.Genres.AddRange(genres.InnerText.Replace("\n", "").Trim().Replace("&nbsp;", "").Replace("Genres: ", "").Split('|').Select(g => g.Trim()));
+                    }
+                    var certificateNode = storylineDetailsNode.SelectSingleNode("//span[@itemprop='contentRating']");
+                    if (certificateNode != null)
+                    {
+                        var certificate = ClassificationHelper.ParseClassification(certificateNode.InnerText);
+                        movie.Classification = certificate;
+                    }
+                    tasks.Add(Task.Run(() =>
+                    {
+                        var keywordsHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId) + "/keywords").Result;
+                        var keywordsDoc = new HtmlDocument();
+                        keywordsDoc.LoadHtml(keywordsHtml);
+                        var keywords = keywordsDoc.DocumentNode.SelectNodes("//td[@class='soda sodavote']");
+                        foreach (var keyword in keywords)
+                        {
+                            var k = new KeyWord();
+                            var words =
+                                keyword.SelectSingleNode("div[@class='sodatext']/a").InnerText.Replace("\n", "").Trim();
+                            var relevance =
+                                Regex.Match(
+                                    keyword.SelectSingleNode("div/div[@class='interesting-count-text']/a").InnerText.Replace("\n", "").Trim(),
+                                    "(?<helpful>[0-9]+) of (?<total>[0-9]+)");
+                            k.Words = words;
+                            if (relevance.Success)
+                            {
+                                k.FoundHelpful = int.Parse(relevance.Groups["helpful"].Value);
+                                k.TotalVotes = int.Parse(relevance.Groups["total"].Value);
+                            }
+                            movie.Keywords.Add(k);
+                        }
+                    }));
                 }));
                 var productionDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@id=\"titleDetails\"]");
                 tasks.Add(Task.Run(() =>
                 {
-
+                    
                 }));
             }));
             tasks.Add(Task.Run(() =>
