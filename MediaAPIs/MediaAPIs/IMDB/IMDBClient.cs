@@ -341,8 +341,11 @@ namespace MediaAPIs.IMDb
                     var ratingsText = titleBarNode.SelectSingleNode("//div[@class='imdbRating']")
                         .InnerText.Replace("\n", "");
                     var ratingsDetails = Regex.Match(ratingsText, "(?<rating>[0-9\\.]{3})\\/1(0|1)[^0-9]+(?<votes>[0-9,]+)");
-                    movie.Rating = double.Parse(ratingsDetails.Groups["rating"].Value);
-                    movie.NumberOfVotes = int.Parse(ratingsDetails.Groups["votes"].Value.Replace(",", ""));
+                    if (ratingsDetails.Success)
+                    {
+                        movie.Rating = double.Parse(ratingsDetails.Groups["rating"].Value);
+                        movie.NumberOfVotes = int.Parse(ratingsDetails.Groups["votes"].Value.Replace(",", ""));
+                    }
                     // Todo if I ever doing logging in then I should add scraping of the user rating.
                     var originalTitleNode = titleBarNode.SelectSingleNode("//div[@class='originalTitle']");
                     if (originalTitleNode != null)
