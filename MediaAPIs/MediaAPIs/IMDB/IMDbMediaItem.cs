@@ -7,6 +7,7 @@ namespace MediaAPIs.IMDb
     {
         public IMDbMediaItem()
         {
+            OfficialSites = new List<string>();
             Keywords = new List<KeyWord>();
             Cast = new List<Credit>();
             Producers = new List<Credit>();
@@ -15,22 +16,24 @@ namespace MediaAPIs.IMDb
             Writers = new List<Credit>();
             OtherCrew = new List<Credit>();
             OtherTitles = new List<string>();
+            Countries = new List<string>();
+            Languages = new List<string>();
         }
 
         /// <summary>
         ///     The Release date of the media item.
         /// </summary>
-        public DateTime ReleaseDate { get; set; }
+        public DateTime? ReleaseDate { get; set; }
 
         /// <summary>
         ///     The runtime of the media itme. Note if it is a TV show this is currently not calculated.
         /// </summary>
-        public TimeSpan RunTime { get; set; }
+        public TimeSpan? RunTime { get; set; }
 
         /// <summary>
         ///     The type of the meda. See MediaType enum for all options.
         /// </summary>
-        public MediaType Type { get; set; }
+        public MediaType? Type { get; set; }
 
         /// <summary>
         ///     The name of the episode the media is. This will only be set if the Media Type is TV Episode otherwise
@@ -48,5 +51,12 @@ namespace MediaAPIs.IMDb
         public int MetacriticScore { get; set; }
         public string ShortSummary { get; set; }
         public List<KeyWord> Keywords { get; private set; }
+        public List<string> OfficialSites { get; private set; }
+        public List<string> Countries { get; private set; }
+        public List<string> Languages { get; private set; }
+        public int Year { get; set; }
+        public long Budget { get; set; }
+        public long Gross { get; set; }
+        public string Colour { get; set; }
     }
 }

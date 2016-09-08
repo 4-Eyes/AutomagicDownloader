@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
@@ -31,6 +33,8 @@ namespace MediaAPIs.IMDb
         ///     The url for a users main page.
         /// </summary>
         private const string UserUrl = "http://www.imdb.com/user/{0}";
+
+        private const string BaseUrl = "http://www.imdb.com";
 
         public IMDbClient(HttpClientHandler newHandler = null)
         {
@@ -129,7 +133,7 @@ namespace MediaAPIs.IMDb
                     var yearNode = movieDetailNode.SelectSingleNode("td[@class=\"year\"]");
                     if (yearNode != null)
                     {
-                        movie.ReleaseDate = new DateTime(int.Parse(yearNode.InnerText), 1, 1);
+                        movie.Year = int.Parse(yearNode.InnerText);
                     }
                     var typeNode = movieDetailNode.SelectSingleNode("td[@class=\"title_type\"]");
                     if (typeNode != null)
@@ -174,7 +178,7 @@ namespace MediaAPIs.IMDb
                             "\\((?<year>[0-9]+).(?<type>[a-zA-z  -]+|)");
                         if (match.Success)
                         {
-                            movie.ReleaseDate = new DateTime(int.Parse(match.Groups["year"].Value), 1, 1);
+                            movie.Year = int.Parse(match.Groups["year"].Value);
                             object type = null;
                             if (string.IsNullOrEmpty(match.Groups["type"].Value))
                             {
@@ -294,15 +298,34 @@ namespace MediaAPIs.IMDb
             return movie;
         }
 
-        public async Task<MediaItem> GetMovieAsync(string imdbId)
+        public string ResolveRedirects(string url)
+        {
+            var req = (HttpWebRequest)WebRequest.Create(url);
+            req.Method = "GET";
+            req.AllowAutoRedirect = true;
+            req.Timeout = 20000;
+
+            try
+            {
+                var myResp = (HttpWebResponse) req.GetResponse();
+                return myResp.ResponseUri.AbsoluteUri;
+            }
+            catch (WebException)
+            {
+                return null;
+            }
+        }
+
+        public async Task<IMDbMediaItem> GetMovieAsync(string imdbId)
         {
             var movie = new IMDbMediaItem
             {
-                Id = imdbId
+                Id = imdbId,
+                Type = MediaType.Feature
             };
             var tasks = new List<Task>();
 
-            tasks.Add(Task.Run(() =>
+            
             {
                 var pageHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId)).Result;
                 var doc = new HtmlDocument();
@@ -314,7 +337,7 @@ namespace MediaAPIs.IMDb
                     var titleYear = Regex.Match(HttpUtility.HtmlDecode(titleYearString).Trim() ?? "",
                         "(?<title>.+).\\((?<year>[0-9]{4})\\)$");
                     movie.Title = titleYear.Groups["title"].Value;
-                    movie.ReleaseDate = new DateTime(int.Parse(titleYear.Groups["year"].Value), 1, 1);
+                    movie.Year = int.Parse(titleYear.Groups["year"].Value);
                     var ratingsText = titleBarNode.SelectSingleNode("//div[@class='imdbRating']")
                         .InnerText.Replace("\n", "");
                     var ratingsDetails = Regex.Match(ratingsText, "(?<rating>[0-9\\.]{3})\\/10[^0-9]+(?<votes>[0-9,]+)");
@@ -373,7 +396,7 @@ namespace MediaAPIs.IMDb
                 var storylineDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@id=\"titleStoryLine\"]");
                 tasks.Add(Task.Run(() =>
                 {
-                    var summary = storylineDetailsNode.SelectSingleNode("//div[@itemprop='description']");
+                    var summary = storylineDetailsNode.SelectSingleNode("div[@itemprop='description']");
                     if (summary != null)
                     {
                         movie.Synopsis = summary.InnerText.Replace("\n", "").Trim();
@@ -395,36 +418,84 @@ namespace MediaAPIs.IMDb
                         var certificate = ClassificationHelper.ParseClassification(certificateNode.InnerText);
                         movie.Classification = certificate;
                     }
-                    tasks.Add(Task.Run(() =>
-                    {
-                        var keywordsHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId) + "/keywords").Result;
-                        var keywordsDoc = new HtmlDocument();
-                        keywordsDoc.LoadHtml(keywordsHtml);
-                        var keywords = keywordsDoc.DocumentNode.SelectNodes("//td[@class='soda sodavote']");
-                        foreach (var keyword in keywords)
-                        {
-                            var k = new KeyWord();
-                            var words =
-                                keyword.SelectSingleNode("div[@class='sodatext']/a").InnerText.Replace("\n", "").Trim();
-                            var relevance =
-                                Regex.Match(
-                                    keyword.SelectSingleNode("div/div[@class='interesting-count-text']/a")
-                                        .InnerText.Replace("\n", "")
-                                        .Trim(),
-                                    "(?<helpful>[0-9]+) of (?<total>[0-9]+)");
-                            k.Words = words;
-                            if (relevance.Success)
-                            {
-                                k.FoundHelpful = int.Parse(relevance.Groups["helpful"].Value);
-                                k.TotalVotes = int.Parse(relevance.Groups["total"].Value);
-                            }
-                            movie.Keywords.Add(k);
-                        }
-                    }));
                 }));
                 var productionDetailsNode = doc.DocumentNode.SelectSingleNode("//div[@id=\"titleDetails\"]");
-                tasks.Add(Task.Run(() => { }));
-            }));
+                tasks.Add(Task.Run(() =>
+                {
+                    var details = productionDetailsNode.SelectNodes("div[@class='txt-block']");
+                    foreach (var detail in details)
+                    {
+                        var header = detail.SelectSingleNode("h4");
+                        if (header == null) continue;
+                        var headerText = header.InnerText.Replace("\n", "").Trim();
+                        if (headerText.Contains("Official Sites"))
+                        {
+                            var links = detail.SelectNodes("a");
+                            foreach (var link in links)
+                            {
+                                var website = ResolveRedirects(BaseUrl + link.Attributes["href"].Value);
+                                if (website != null)
+                                {
+                                    movie.OfficialSites.Add(website);
+                                }
+                            }
+                        }
+                        else if (headerText.Contains("Country"))
+                        {
+                            var countries = detail.SelectNodes("a");
+                            foreach (var country in countries)
+                            {
+                                movie.Countries.Add(country.InnerText.Replace("\n", "").Trim());
+                            }
+                        }
+                        else if (headerText.Contains("Language"))
+                        {
+                            var languages = detail.SelectNodes("a");
+                            foreach (var language in languages)
+                            {
+                                movie.Languages.Add(language.InnerText.Replace("\n", "").Trim());
+                            }
+                        }
+                        else if (headerText.Contains("Release Date"))
+                        {
+                            var releaseDate = header.NextSibling.InnerText;
+                            var r = Regex.Match(releaseDate, "(.+)\\([^\\)]+\\)");
+                            if (!r.Success) continue;
+                            var rd = DateTime.MinValue;
+                            DateTime.TryParse(r.Groups[1].Value, out rd);
+                            if (!rd.Equals(DateTime.MinValue))
+                            {
+                                movie.ReleaseDate = rd;
+                            }
+                        }
+                        else if (headerText.Contains("Budget"))
+                        {
+                            var budget = new string (header.NextSibling.InnerText.Where(c => char.IsDigit(c) || c.Equals('.')) .ToArray());
+                            movie.Budget = long.Parse(budget);
+                        }
+                        else if (headerText.Contains("Gross"))
+                        {
+                            var gross = header.NextSibling.InnerText;
+                            movie.Gross = int.Parse(gross.Replace(",", "").Replace("$", ""));
+                        }
+                        else if (headerText.Contains("Runtime"))
+                        {
+                            var time = detail.SelectSingleNode("time").InnerText;
+                            var rt = TimeSpan.MinValue;
+                            TimeSpan.TryParse(time.Replace("min", ""), out rt);
+                            if (!rt.Equals(TimeSpan.MinValue))
+                            {
+                                movie.RunTime = rt;
+                            }
+                        }
+                        else if (headerText.Contains("Color"))
+                        {
+                            var colour = detail.SelectSingleNode("a").InnerText;
+                            movie.Colour = colour.Replace("\n", "").Trim();
+                        }
+                    }
+                }));
+            }
             tasks.Add(Task.Run(() =>
             {
                 var fullCreditsHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId) + "/fullcredits").Result;
@@ -479,10 +550,43 @@ namespace MediaAPIs.IMDb
                     }
                 }
             }));
+            tasks.Add(Task.Run(() =>
+            {
+                var keywordsHtml = Client.GetStringAsync(string.Format(TitleUrl, imdbId) + "/keywords").Result;
+                var keywordsDoc = new HtmlDocument();
+                keywordsDoc.LoadHtml(keywordsHtml);
+                var keywords = keywordsDoc.DocumentNode.SelectNodes("//td[@class='soda sodavote']");
+                if (keywords == null) return;
+                foreach (var keyword in keywords)
+                {
+                    var k = new KeyWord();
+                    var words =
+                        keyword.SelectSingleNode("div[@class='sodatext']/a")
+                            .InnerText.Replace("\n", "")
+                            .Trim();
+                    var relevance =
+                        Regex.Match(
+                            keyword.SelectSingleNode("div/div[@class='interesting-count-text']/a")
+                                .InnerText.Replace("\n", "")
+                                .Trim(),
+                            "(?<helpful>[0-9]+) of (?<total>[0-9]+)");
+                    k.Words = words;
+                    if (relevance.Success)
+                    {
+                        k.FoundHelpful = int.Parse(relevance.Groups["helpful"].Value);
+                        k.TotalVotes = int.Parse(relevance.Groups["total"].Value);
+                    }
+                    movie.Keywords.Add(k);
+                }
+            }));
             // Now wait for each task to complete
             while (tasks.Count > 0)
             {
-                var finishedTask = await Task.WhenAny(tasks);
+                Task finishedTask;
+                lock (tasks)
+                {
+                    finishedTask = Task.WhenAny(tasks).Result;
+                }
 
                 tasks.Remove(finishedTask);
 
