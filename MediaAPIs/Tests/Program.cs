@@ -47,6 +47,7 @@ namespace Tests
             var movies = client.GetPublicRatingsAsync(id, MovieView.Detail).Result;
             var featureFilms = movies.Where(item => (item as IMDbMediaItem).Type.Value == MediaType.Feature);
             loading[0] = false;
+            await loadingTask;
             Console.WriteLine("\nFinished Loading ratings");
             var fullMovies = new List<IMDbMediaItem>();
             var j = 0.0;
