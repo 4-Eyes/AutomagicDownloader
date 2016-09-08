@@ -26,7 +26,8 @@ namespace MediaAPIs.IMDb
         [Description("TV Episode")] TVEpisode,
         [Description("TV Movie")] TVMovie,
         [Description("Video")] Video,
-        [Description("Video Game")] VideoGame
+        [Description("Video Game")] VideoGame,
+        [Description("TV Special")] TVSpecial
     }
 
     internal class IntervalSize : Attribute
