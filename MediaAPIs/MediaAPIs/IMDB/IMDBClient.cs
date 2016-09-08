@@ -39,7 +39,7 @@ namespace MediaAPIs.IMDb
         public IMDbClient(HttpClientHandler newHandler = null)
         {
             Handler = newHandler ?? new HttpClientHandler();
-            Client = new HttpClient(Handler);
+            Client = new HttpClient(Handler) {Timeout = TimeSpan.FromMinutes(10)};
         }
 
         public async Task<List<MediaItem>> GetPublicRatingsAsync(string user, MovieView view = MovieView.Compact)
@@ -94,7 +94,8 @@ namespace MediaAPIs.IMDb
             NameValueCollection headers)
         {
             var userRatingsHTML =
-                await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(headers));
+                    await Client.GetStringAsync(string.Format(RatingsListUrl, user) + ToQueryString(headers));
+
             var doc = new HtmlDocument();
             doc.LoadHtml(userRatingsHTML);
             var unparsedMovies = doc.DocumentNode.SelectNodes(view.GetXPathQuery());
